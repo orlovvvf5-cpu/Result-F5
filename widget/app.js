@@ -12,22 +12,33 @@ function mount(root,C,adapter,options={}){
  <div class="f5-note">События отражают доступную историю, а не гарантированно все события за весь срок работы аккаунта. Удалённые и скрытые карточки могут отсутствовать. Равная длина периодов не гарантирует равного покрытия историей. Рост продаж не доказывает влияние внедрения Ф5.</div>
  <section class="f5-connection"><div><h2>Источник: текущий аккаунт amoCRM</h2><p id="f5-loaded">Данные ещё не получены</p></div><button id="f5-refresh">Обновить данные аккаунта</button><p id="f5-status" role="status" aria-live="polite"></p></section>
  <p id="f5-load-error" role="alert"></p>
- <section class="f5-controls"><div class="f5-periods"><label>Дата внедрения Ф5<input type="date" id="f5-implementation"></label><fieldset><legend><i class="f5-dot before"></i>До внедрения</legend><input aria-label="Начало периода до" type="date" id="f5-b0"><span>—</span><input aria-label="Конец периода до" type="date" id="f5-b1"></fieldset><fieldset><legend><i class="f5-dot after"></i>После внедрения</legend><input aria-label="Начало периода после" type="date" id="f5-a0"><span>—</span><input aria-label="Конец периода после" type="date" id="f5-a1"></fieldset><button id="f5-auto">По 28 дней</button><button id="f5-apply">Рассчитать по событиям</button></div><div class="f5-filters">${filter('pipeline','Воронка сейчас')}${filter('manager','Ответственный сделки сейчас')}${filter('source','Источник сделки сейчас')}<div class="f5-timezone" id="f5-timezone">Часовой пояс: ожидаем API</div></div><p>Фильтры описывают текущий сегмент доступных сделок, а не их назначения в прошлом. События без доступной карточки включены только при выборе «Все доступные».</p></section>
+ <section class="f5-controls"><div class="f5-periods"><label>Дата внедрения Ф5<input type="date" id="f5-implementation"></label><fieldset><legend><i class="f5-dot before"></i>До внедрения</legend><input aria-label="Начало периода до" type="date" id="f5-b0"><span>—</span><input aria-label="Конец периода до" type="date" id="f5-b1"></fieldset><fieldset><legend><i class="f5-dot after"></i>После внедрения</legend><input aria-label="Начало периода после" type="date" id="f5-a0"><span>—</span><input aria-label="Конец периода после" type="date" id="f5-a1"></fieldset><button id="f5-auto">До 28 завершённых дней</button><button id="f5-apply">Рассчитать по событиям</button></div><div class="f5-filters">${filter('pipeline','Воронка сейчас')}${filter('manager','Ответственный сделки сейчас')}${filter('source','Источник сделки сейчас')}<div class="f5-timezone" id="f5-timezone">Часовой пояс: ожидаем API</div></div><p>Фильтры описывают текущий сегмент доступных сделок, а не их назначения в прошлом. События без доступной карточки включены только при выборе «Все доступные».</p></section>
  <p id="f5-error" role="alert"></p><div id="f5-report" hidden><div class="f5-section-title"><h2>Было → стало · доступные данные</h2><span>Равные периоды · <b id="f5-days"></b> дней</span></div><section class="f5-cards" id="f5-cards"></section><section class="f5-chart-panel"><div class="f5-section-title"><div><h2>Динамика по неделям</h2><p>Недели от начала каждого периода; последняя может быть неполной. Успешные сделки учитываются уникально внутри каждой недели; недельные числа могут не складываться в итог периода.</p></div><select id="f5-chart-key" aria-label="Показатель графика"></select></div><div class="f5-legend"><span><i class="f5-dot before"></i>До внедрения</span><span><i class="f5-dot after"></i>После внедрения</span></div><div id="f5-chart"></div></section></div>
  <section id="f5-current" hidden><div class="f5-section-title"><h2>Задачи · текущее состояние</h2></div><p>Эти значения получены сейчас. Они не подставляются в сравнение прошлых периодов. API не обеспечивает атомарный снимок: данные могут изменяться во время выгрузки.</p><div class="f5-cards" id="f5-current-cards"></div></section>
  <section class="f5-history"><div><div class="eyebrow">ПРОВЕРЯЕМЫЙ РАСЧЁТ</div><h2>История важнее текущего состояния</h2><p>Текущие бюджеты и задачи не описывают прошлое. Если восстановление не подтверждено, вместо значения показываем причину.</p></div><div class="f5-history-card"><span class="f5-warning">Недостаточно исторических данных</span><p>Без сервера виджет читает API, пока открыт браузер. Постоянный сбор событий и регулярные снимки при закрытом браузере здесь не выполняются.</p></div></section>
- <footer>Результат F5 · 0.2.0 · только чтение <span>Сумма сделок ≠ оплаты. Права пользователя ограничивают выборку.</span></footer>
+ <footer>Результат F5 · 0.2.1 · только чтение <span>Сумма сделок ≠ оплаты. Права пользователя ограничивают выборку.</span></footer>
  <dialog id="f5-dialog"><div class="f5-dialog-head"><h2 id="f5-dialog-title"></h2><button id="f5-close" aria-label="Закрыть">✕</button></div><div id="f5-dialog-body"></div></dialog></div>`;
  const q=s=>root.querySelector(s);
  function setBusy(v){busy=v;root.querySelectorAll('input,select,button').forEach(el=>{if(el.id!=='f5-close')el.disabled=v;});}
  function status(text){if(!destroyed)q('#f5-status').textContent=text;}
  function readParams(){params.implementation=q('#f5-implementation').value;params.before=[q('#f5-b0').value,q('#f5-b1').value];params.after=[q('#f5-a0').value,q('#f5-a1').value];}
- function presets(){const t=C.date(q('#f5-implementation').value);if(!Number.isFinite(t))return;q('#f5-b0').value=C.iso(t-28*C.DAY);q('#f5-b1').value=C.iso(t-C.DAY);q('#f5-a0').value=C.iso(t);q('#f5-a1').value=C.iso(t+27*C.DAY);readParams();}
- function invalidate(){result=null;q('#f5-report').hidden=true;readParams();q('#f5-error').textContent=C.validate(params,data)||'Периоды изменены. Нажмите «Рассчитать по событиям».';}
+ function pending(message){
+  result=null;if(!data){q('#f5-report').hidden=true;return;}
+  q('#f5-report').hidden=false;q('#f5-days').textContent='—';q('.f5-chart-panel').hidden=true;
+  q('#f5-cards').innerHTML=C.definitions().map((m,i)=>`<article class="f5-card"><div class="f5-card-heading"><h3>${esc(m.title)}</h3><span class="f5-number">0${i+1}</span></div><div class="f5-values"><div><small>БЫЛО</small><strong>—</strong></div><span class="f5-arrow">→</span><div><small>СТАЛО</small><strong>—</strong></div></div><p class="f5-missing">${esc(message)}</p><button data-formula="${i}">Формула ↗</button></article>`).join('');
+ }
+ function presets(){
+  if(!data)return;
+  const suggested=C.suggestPeriods(q('#f5-implementation').value,data);
+  for(const id of ['#f5-b0','#f5-b1','#f5-a0','#f5-a1'])q(id).value='';
+  if(suggested){q('#f5-b0').value=suggested.before[0];q('#f5-b1').value=suggested.before[1];q('#f5-a0').value=suggested.after[0];q('#f5-a1').value=suggested.after[1];}
+  readParams();
+ }
+ function invalidate(){readParams();const message=C.validate(params,data)||'Периоды изменены. Нажмите «Рассчитать по событиям».';q('#f5-error').textContent=message;pending(message);}
  function populate(){const dict=C.dictionaries(data);for(const k of ['pipeline','manager','source']){const sel=q('[data-filter="'+k+'"]');sel.innerHTML='<option value="">Все доступные</option>'+dict[k].map(([id,name])=>`<option value="${esc(id)}">${esc(name)}</option>`).join('');if(dict[k].some(([id])=>id===params.filters[k]))sel.value=params.filters[k];else params.filters[k]='';}}
  function drawCurrent(){if(!data)return;current=C.current(data,params.filters);q('#f5-current').hidden=false;q('#f5-current-cards').innerHTML=current.map((m,i)=>`<article class="f5-card"><h3>${esc(m.title)}</h3><div class="f5-values"><strong>${value(m)}</strong></div><p>${m.value===null?esc(m.reason):`${m.count??m.rows.length} ${m.key==='currentOverdue'?'задач':'сделок'} в расчёте`}</p><button data-current="${i}">Формула и сделки ↗</button></article>`).join('');}
  function draw(){
-  result=C.compare(data,params);q('#f5-error').textContent=result.error||'';q('#f5-report').hidden=!!result.error;if(result.error)return;
+  result=C.compare(data,params);q('#f5-error').textContent=result.error||'';if(result.error){pending(result.error);return;}q('#f5-report').hidden=false;q('.f5-chart-panel').hidden=false;
   q('#f5-days').textContent=(C.date(params.before[1])-C.date(params.before[0]))/C.DAY+1;
   q('#f5-cards').innerHTML=result.before.map((b,i)=>{const a=result.after[i],delta=a.value===null||b.value===null?null:a.value-b.value,good=delta!==null&&(b.lower?delta<0:delta>0);let change='Нет базы для сравнения';if(delta!==null)change=b.unit==='percent'?`${delta>0?'+':''}${fmt.format(delta)} п.п.`:b.value===0?(a.value===0?'Без изменений':'База равна нулю'):`${delta>0?'+':''}${fmt.format(delta/b.value*100)}%`;
    return `<article class="f5-card"><div class="f5-card-heading"><h3>${esc(b.title)}</h3><span class="f5-number">0${i+1}</span></div><div class="f5-values"><div><small>БЫЛО</small><strong>${value(b)}</strong></div><span class="f5-arrow">→</span><div><small>СТАЛО</small><strong>${value(a)}</strong></div></div>${b.value===null||a.value===null?`<p class="f5-missing">Недостаточно исторических данных</p>`:''}<div class="f5-card-foot"><span class="f5-delta ${good?'good':delta===0||delta===null?'neutral':'bad'}">${change}</span><button data-detail="${i}">Расчёт и сделки ↗</button></div><small>${b.rows.length} → ${a.rows.length} доступных сделок в расчёте</small>${b.notice?`<p class="f5-scope">${esc(b.notice)}</p>`:''}</article>`;
@@ -43,8 +54,8 @@ function mount(root,C,adapter,options={}){
  function show(title,html){q('#f5-dialog-title').textContent=title;q('#f5-dialog-body').innerHTML=html;q('#f5-dialog').showModal();}
  function table(m){return `<p>${esc(m.formula)}</p>${m.reason?`<p class="f5-missing">${esc(m.reason)}</p>`:''}${m.notice?`<p>${esc(m.notice)}</p>`:''}<p>${m.rows.length} доступных сделок${m.count!==undefined?' · '+m.count+' задач':''}</p><div class="f5-table-scroll"><table><thead><tr><th>Сделка</th><th>Создана</th><th>Наблюдаемый успех</th></tr></thead><tbody>${m.rows.map(l=>`<tr><td><a href="/leads/detail/${Number(l.id)}" target="_blank" rel="noopener">${esc(l.name||'Сделка #'+l.id)} · #${Number(l.id)}</a>${l.unavailable?' (карточка недоступна)':''}</td><td>${l.created_at?esc(C.localDate(l.created_at*1000,data.timezone)):'Неизвестно'}</td><td>${l.success_at?esc(C.localDate(l.success_at*1000,data.timezone)):'—'}</td></tr>`).join('')||'<tr><td colspan="3">Нет подтверждённых записей</td></tr>'}</tbody></table></div>`;}
  async function calculate(){
-  if(!data||!adapter)return;if(busy)return;readParams();const error=C.validate(params,data);if(error){q('#f5-error').textContent=error;q('#f5-report').hidden=true;return;}
-  setBusy(true);q('#f5-report').hidden=true;status('Загружаем события выбранных периодов…');
+  if(!data||!adapter)return;if(busy)return;readParams();const error=C.validate(params,data);if(error){q('#f5-error').textContent=error;pending(error);return;}
+  setBusy(true);pending('Загружаем события выбранных периодов…');status('Загружаем события выбранных периодов…');
   const from=C.boundary(params.before[0],data.timezone),to=C.boundary(C.addDays(params.after[1],1),data.timezone);
   try{const events=await adapter.events(data,from,to);if(destroyed)return;data.events=events;data.eventFrom=from;data.eventTo=to;data.eventError='';status(`История загружена: ${events.length} доступных событий смены этапа. Полнота старой истории не гарантирована.`);}
   catch(e){if(destroyed)return;data.events=null;data.eventError='События недоступны: '+e.message;status(data.eventError);}
@@ -58,18 +69,19 @@ function mount(root,C,adapter,options={}){
    drawCurrent();status(data.warnings.length?data.warnings.join(' · '):'Данные аккаунта загружены. Укажите дату внедрения и периоды.');
   }catch(e){if(!destroyed){q('#f5-account').textContent='Аккаунт не загружен';q('#f5-load-error').textContent='Не удалось загрузить данные: '+e.message;status('Расчёты остановлены. Проверьте доступ к API и повторите обновление.');}}
   finally{if(!destroyed)setBusy(false);}
-  if(data&&!destroyed){readParams();if(!C.validate(params,data))await calculate();else invalidate();}
+  if(data&&!destroyed){readParams();if(!params.before[0]&&!params.after[0])presets();readParams();if(!C.validate(params,data))await calculate();else invalidate();}
  }
  root.addEventListener('change',e=>{
   if(e.target.id==='f5-chart-key'){chartKey=e.target.value;drawChart();return;}
   if(e.target.dataset.filter){params.filters[e.target.dataset.filter]=e.target.value;drawCurrent();if(result&&!result.error)draw();return;}
-  if(e.target.id==='f5-implementation')presets();invalidate();
+  if(e.target.id==='f5-implementation'){presets();invalidate();if(data&&!C.validate(params,data))calculate();return;}invalidate();
  },{signal:controller.signal});
  root.addEventListener('click',e=>{
-  const detail=e.target.closest('[data-detail]'),now=e.target.closest('[data-current]');
+  const detail=e.target.closest('[data-detail]'),now=e.target.closest('[data-current]'),formula=e.target.closest('[data-formula]');
+  if(formula){const m=C.definitions()[Number(formula.dataset.formula)];show(m.title,'<p>'+esc(m.formula)+'</p>');}
   if(detail&&result&&!result.error){const i=Number(detail.dataset.detail);show(result.before[i].title,'<h3>До</h3>'+table(result.before[i])+'<h3>После</h3>'+table(result.after[i]));}
   if(now&&current.length){const m=current[Number(now.dataset.current)];show(m.title,table(m));}
-  if(e.target.id==='f5-close')q('#f5-dialog').close();if(e.target.id==='f5-auto'){presets();invalidate();}
+  if(e.target.id==='f5-close')q('#f5-dialog').close();if(e.target.id==='f5-auto'){presets();invalidate();if(data&&!C.validate(params,data))calculate();}
   if(e.target.id==='f5-apply')calculate();if(e.target.id==='f5-refresh')load();
  },{signal:controller.signal});
  if(Number.isFinite(C.date(options.implementationDate))){q('#f5-implementation').value=options.implementationDate;presets();}

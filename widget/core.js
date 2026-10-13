@@ -19,6 +19,23 @@ function sourceId(l){return String(l.source_id??(l._embedded&&l._embedded.source
 function matches(l,f){return (!f.pipeline||String(l.pipeline_id)===f.pipeline)&&(!f.manager||String(l.responsible_user_id)===f.manager)&&(!f.source||sourceId(l)===f.source);}
 function dictionaries(data){const u=new Map(data.users.map(x=>[String(x.id),x.name])),p=new Map(data.pipelines.map(x=>[String(x.id),x.name])),sources=new Map();for(const l of data.leads){u.set(String(l.responsible_user_id),u.get(String(l.responsible_user_id))||'Менеджер #'+l.responsible_user_id);p.set(String(l.pipeline_id),p.get(String(l.pipeline_id))||'Воронка #'+l.pipeline_id);sources.set(sourceId(l),(l._embedded&&l._embedded.source&&l._embedded.source.name)||(sourceId(l)==='none'?'Источник не указан':'Источник #'+sourceId(l)));}return {manager:[...u],pipeline:[...p],source:[...sources]};}
 function spec(key,title,unit,formula,lower=false){return {key,title,unit,formula,lower,rows:[],value:null,reason:'Недостаточно исторических данных'};}
+function definitions(){
+ return [
+  spec('created','Новые сделки','count','Количество доступных, неудалённых сделок, созданных в периоде (created_at). Это полная выгрузка доступных карточек, не всех когда-либо существовавших сделок.'),
+  spec('won','Успешные сделки','count','Количество уникальных сделок с переходом из другого статуса в «Успешно реализовано» (142) в доступных событиях периода. Повторные переходы одной сделки в периоде считаются один раз. Это не утверждение о первом успехе за всё время.'),
+  spec('conversion','Конверсия за 28 дней','percent','Предполагаемое правило: доля созданных в периоде сделок, успешно закрытых в течение 28 суток. Требуется полная история когорты, включая удалённые сделки, и последующее наблюдение. Отношение успешных к новым не используется.'),
+  spec('revenue','Сумма успешных сделок','money','Сумма бюджетов на момент успешного перехода, не оплаты. Текущие price не подставляются в исторический показатель.'),
+  spec('duration','До наблюдаемого успеха','days','Среднее число суток от created_at до самого раннего доступного успешного перехода ВНУТРИ выбранного периода для каждой сделки. После переоткрытий это может отличаться от первого успеха за всё время.',true),
+  spec('overdue','Просроченные задачи','count','Количество незавершённых задач с прошедшим сроком на конец исторического периода. Текущий список задач не является историческим снимком.',true),
+  spec('noTask','Активные без следующей задачи','count','Активные сделки без незавершённой задачи на конец исторического периода. Требуется состояние сделок и задач на ту дату.',true)
+ ];
+}
+function suggestPeriods(implementation,data,maxDays=28){
+ if(!Number.isFinite(date(implementation))||!data)return null;
+ const today=localDate(data.loadedAt,data.timezone),days=Math.min(maxDays,Math.round((date(today)-date(implementation))/DAY));
+ if(days<1)return null;
+ return {implementation,before:[addDays(implementation,-days),addDays(implementation,-1)],after:[implementation,addDays(implementation,days-1)],days};
+}
 function period(data,range,f={}){
  const start=boundary(range[0],data.timezone),end=boundary(addDays(range[1],1),data.timezone),byId=new Map(data.leads.map(l=>[l.id,l]));
  const filtered=data.leads.filter(l=>matches(l,f)),created=filtered.filter(l=>l.created_at*1000>=start&&l.created_at*1000<end);
@@ -29,15 +46,7 @@ function period(data,range,f={}){
   if(!winRows.has(e.entity_id)||e.created_at<winRows.get(e.entity_id).success_at)winRows.set(e.entity_id,{...(l||{id:e.entity_id,name:'Карточка недоступна',unavailable:true}),success_at:e.created_at});
  }
  const wins=[...winRows.values()],durationRows=wins.filter(l=>Number.isFinite(l.created_at)&&l.created_at>0&&l.created_at<=l.success_at);
- const metrics=[
-  spec('created','Новые сделки','count','Количество доступных, неудалённых сделок, созданных в периоде (created_at). Это полная выгрузка доступных карточек, не всех когда-либо существовавших сделок.'),
-  spec('won','Успешные сделки','count','Количество уникальных сделок с переходом из другого статуса в «Успешно реализовано» (142) в доступных событиях периода. Повторные переходы одной сделки в периоде считаются один раз. Это не утверждение о первом успехе за всё время.'),
-  spec('conversion','Конверсия за 28 дней','percent','Предполагаемое правило: доля созданных в периоде сделок, успешно закрытых в течение 28 суток. Требуется полная история когорты, включая удалённые сделки, и последующее наблюдение. Отношение успешных к новым не используется.'),
-  spec('revenue','Сумма успешных сделок','money','Сумма бюджетов на момент успешного перехода, не оплаты. Текущие price не подставляются в исторический показатель.'),
-  spec('duration','До наблюдаемого успеха','days','Среднее число суток от created_at до самого раннего доступного успешного перехода ВНУТРИ выбранного периода для каждой сделки. После переоткрытий это может отличаться от первого успеха за всё время.',true),
-  spec('overdue','Просроченные задачи','count','Количество незавершённых задач с прошедшим сроком на конец исторического периода. Текущий список задач не является историческим снимком.',true),
-  spec('noTask','Активные без следующей задачи','count','Активные сделки без незавершённой задачи на конец исторического периода. Требуется состояние сделок и задач на ту дату.',true)
- ];
+ const metrics=definitions();
  Object.assign(metrics[0],{value:created.length,rows:created,reason:''});
  if(eventReady){Object.assign(metrics[1],{value:wins.length,rows:wins,reason:'',notice:'По доступным событиям API; сроки хранения и полнота старой истории не гарантированы.'});
   if(wins.length&&durationRows.length===wins.length)Object.assign(metrics[4],{value:durationRows.reduce((s,l)=>s+(l.success_at-l.created_at)/86400,0)/wins.length,rows:durationRows,reason:''});
@@ -60,5 +69,5 @@ function current(data,f={}){
  const rows=[...new Set(overdue.map(t=>t.entity_id))].map(id=>byId.get(id)||{id,name:'Карточка недоступна',unavailable:true});
  Object.assign(result[0],{value:overdue.length,count:overdue.length,rows,reason:''});Object.assign(result[1],{value:noTask.length,rows:noTask,reason:''});return result;
 }
-return {DAY,iso,date,addDays,localDate,boundary,validate,sourceId,matches,dictionaries,period,compare,weeks,current};
+return {definitions,suggestPeriods,DAY,iso,date,addDays,localDate,boundary,validate,sourceId,matches,dictionaries,period,compare,weeks,current};
 });
