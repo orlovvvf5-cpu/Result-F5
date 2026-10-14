@@ -56,6 +56,18 @@ with sync_playwright() as p:
  assert page.locator('#f5-days').inner_text()=='7'
  assert page.locator('#f5-cards .f5-card').count()==7
  assert page.locator('#f5-cards .f5-card').first.locator('.f5-values strong').all_text_contents()==['1','2']
+ # amoCRM settings can place the widget inside a form: buttons must not submit it.
+ page.evaluate("()=>{const root=document.getElementById('f5-root');const form=document.createElement('form');root.before(form);form.appendChild(root);window.submits=0;form.addEventListener('submit',e=>{e.preventDefault();window.submits++;});}")
+ page.locator('#f5-implementation').fill('')
+ page.locator('#f5-auto').click()
+ assert 'Сначала выберите дату внедрения' in page.locator('#f5-status').inner_text()
+ assert page.locator('#f5-implementation').evaluate('(e)=>e===document.activeElement')
+ page.locator('#f5-apply').click()
+ assert page.evaluate('window.submits')==0
+ assert page.locator('button:not([type="button"])').count()==0
+ page.locator('#f5-implementation').fill('2026-10-06')
+ page.wait_for_function("document.querySelector('#f5-status').textContent.includes('История загружена') && !document.querySelector('#f5-apply').disabled")
+ assert page.evaluate('window.submits')==0
  assert all(method=='GET' for method,path in requests);assert not errors,errors
  print('PASS: no demo fallback; live-shaped mocked API; account/timezone; metrics; current tasks; real-ID links; filters; invalid periods; mobile; 403 events/account; GET only. Not a real-account test.')
  b.close()
