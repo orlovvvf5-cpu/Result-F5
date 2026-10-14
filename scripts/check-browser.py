@@ -68,6 +68,13 @@ with sync_playwright() as p:
  page.locator('#f5-implementation').fill('2026-10-06')
  page.wait_for_function("document.querySelector('#f5-status').textContent.includes('История загружена') && !document.querySelector('#f5-apply').disabled")
  assert page.evaluate('window.submits')==0
+ page.set_viewport_size({'width':1440,'height':1000})
+ page.evaluate("document.getElementById('f5-root').style.width='860px'")
+ assert page.locator('#f5-root').evaluate('(e)=>e.scrollWidth<=e.clientWidth')
+ assert page.locator('#f5-root').evaluate("(e)=>getComputedStyle(e).backgroundColor==='rgb(255, 255, 255)'")
+ assert page.locator('#f5-apply').evaluate("(e)=>getComputedStyle(e).backgroundColor==='rgb(17, 141, 81)'")
+ # A visual reference uses the same explicitly mocked API, never real customer records.
+ page.locator('#f5-root').screenshot(path=str(Path(__file__).resolve().parents[1]/'docs/design-0.2.3.png'))
  assert all(method=='GET' for method,path in requests);assert not errors,errors
  print('PASS: no demo fallback; live-shaped mocked API; account/timezone; metrics; current tasks; real-ID links; filters; invalid periods; mobile; 403 events/account; GET only. Not a real-account test.')
  b.close()
